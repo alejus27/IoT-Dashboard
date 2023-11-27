@@ -22,7 +22,7 @@
             color: #333;
         }
 
-        #data, #stats, #graph, #chart, #buttons{
+        #buttons, #data, #stats, #graph, #chart {
             margin-top: 20px;
             border: 1px solid #ddd;
             padding: 20px;
@@ -33,18 +33,24 @@
         canvas {
             max-width: 100%;
         }
+
+        .warning {
+            color: red;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
     <h1>MQTT Web App</h1>
     <div id="buttons">
-        <h2>Control</h2>
+        <h2>Control Válvula de Gas</h2>
         <button onclick="sendMessage('ON')">Encender</button>
         <button onclick="sendMessage('OFF')">Apagar</button>
     </div>
     <div id="data">
         <h2>Último Dato</h2>
         <p id="latest-data">Esperando datos...</p>
+        <p id="warning-message" class="warning"></p>
     </div>
     <div id="stats">
         <h2>Estadísticas</h2>
@@ -57,25 +63,37 @@
         </div>
     </div>
 
-
     <script>
         const eventSource = new EventSource('/stream');
         let chart;
 
         eventSource.onmessage = function(event) {
             // Actualizar el contenido con el último dato
-            document.getElementById('latest-data').innerHTML = `Último dato: ${event.data}`;
+            const latestDataElement = document.getElementById('latest-data');
+            latestDataElement.innerHTML = `Último dato: ${event.data}`;
 
             // Obtener estadísticas
             fetch('/stats')
                 .then(response => response.json())
                 .then(data => {
                     if (data.latest_data !== undefined) {
-                        document.getElementById('latest-stat').innerHTML = `
+                        const warningMessage = document.getElementById('warning-message');
+                        const statElement = document.getElementById('latest-stat');
+                        
+                        statElement.innerHTML = `
                             Media: ${data.mean_value}<br>
                             Máximo: ${data.max_value}<br>
                             Mínimo: ${data.min_value}
                         `;
+
+                        // Verificar si el último dato es mayor a 300 y mostrar mensaje de advertencia
+                        if (parseInt(data.latest_data) > 30) {
+                            warningMessage.classList.add('warning');
+                            warningMessage.innerHTML = '¡Advertencia! Niveles altos de gas detectados.';
+                        } else {
+                            warningMessage.classList.remove('warning');
+                            warningMessage.innerHTML = '';  // Limpiar el mensaje si no hay advertencia
+                        }
 
                         // Actualizar la gráfica solo si hay un nuevo dato
                         Plotly.extendTraces('graph', {y: [[data.latest_data]]}, [0]);
