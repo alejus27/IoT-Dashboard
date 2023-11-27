@@ -96,6 +96,8 @@ def stats():
         if latest_data > 30 and not notification_sent:
             send_email('Alerta de Umbral', f'El último dato es {latest_data}, ¡se ha superado el umbral!')
             notification_sent = True
+        elif latest_data <= 30:
+            notification_sent = False
 
         return jsonify({
             'latest_data': latest_data,
