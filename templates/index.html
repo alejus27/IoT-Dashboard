@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQTT Web App</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.0.3/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://www.eclipse.org/paho/clients/js/"></script>
+    <script src="https://www.eclipse.org/paho/clients/js/paho-mqtt.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        #data, #stats, #graph, #chart, #buttons{
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+
+        canvas {
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h1>MQTT Web App</h1>
+    <div id="buttons">
+        <h2>Control</h2>
+        <button onclick="sendMessage('ON')">Encender</button>
+        <button onclick="sendMessage('OFF')">Apagar</button>
+    </div>
+    <div id="data">
+        <h2>Último Dato</h2>
+        <p id="latest-data">Esperando datos...</p>
+    </div>
+    <div id="stats">
+        <h2>Estadísticas</h2>
+        <p id="latest-stat">Esperando datos...</p>
+    </div>
+    <div id="graph">
+        <h2>Gráfica de Datos MQTT</h2>
+        <div id="chart-container">
+            <canvas id="chart"></canvas>
+        </div>
+    </div>
+
+
+    <script>
+        const eventSource = new EventSource('/stream');
+        let chart;
+
+        eventSource.onmessage = function(event) {
+            // Actualizar el contenido con el último dato
+            document.getElementById('latest-data').innerHTML = `Último dato: ${event.data}`;
+
+            // Obtener estadísticas
+            fetch('/stats')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.latest_data !== undefined) {
+                        document.getElementById('latest-stat').innerHTML = `
+                            Media: ${data.mean_value}<br>
+                            Máximo: ${data.max_value}<br>
+                            Mínimo: ${data.min_value}
+                        `;
+
+                        // Actualizar la gráfica solo si hay un nuevo dato
+                        Plotly.extendTraces('graph', {y: [[data.latest_data]]}, [0]);
+                    }
+                })
+                .catch(error => console.error('Error al obtener estadísticas', error));
+
+            // Actualizar la gráfica basada en la información de la colección
+            updateChart();
+        };
+
+        function updateChart() {
+            // Obtener datos desde MongoDB Atlas
+            fetch('/collection_data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        const labels = data.map(item => item.timestamp);
+                        const values = data.map(item => item.data);
+
+                        // Actualizar la gráfica
+                        if (chart) {
+                            chart.data.labels = labels;
+                            chart.data.datasets[0].data = values;
+                            chart.update();
+                        } else {
+                            // Crear la gráfica si no existe
+                            const ctx = document.getElementById('chart').getContext('2d');
+                            chart = new Chart(ctx, {
+                                type: 'line',
+                                data: {
+                                    labels: labels,
+                                    datasets: [{
+                                        label: 'Datos de la Colección',
+                                        borderColor: 'rgb(75, 192, 192)',
+                                        data: values,
+                                    }],
+                                },
+                            });
+                        }
+                    }
+                })
+                .catch(error => console.error('Error al obtener datos de la colección', error));
+        }
+
+        function sendMessage(message) {
+            // Enviar el mensaje al servidor para que lo publique en el tópico MQTT
+            fetch(`/send_message?message=${message}`)
+                .then(response => response.json())
+                .then(data => console.log('Mensaje enviado:', data))
+                .catch(error => console.error('Error al enviar mensaje', error));
+        }
+    </script>
+</body>
+</html>
