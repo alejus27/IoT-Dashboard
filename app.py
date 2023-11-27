@@ -6,12 +6,24 @@ from datetime import datetime
 import threading
 import time
 import statistics
+from bson.json_util import dumps
+from flask_mail import Mail, Message
 app = Flask(__name__)
+
+notification_sent = False
 
 # Reemplaza con tus credenciales de MongoDB Atlas
 mongo_client = MongoClient("mongodb+srv://alejo:123@cluster0.6lushwm.mongodb.net/")
 db = mongo_client["iot"]
 collection = db["data2"]
+
+# Configuración de Flask-Mail
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'alejotrujillo11@gmail.com'
+app.config['MAIL_PASSWORD'] = 'ecrb rmlt sqji lrji'
+app.config['MAIL_DEFAULT_SENDER'] = ('Alejandro T.', 'alejotrujillo11@gmail.com')
 
 # Crear el DataFrame de Pandas para almacenar los datos
 df = pd.DataFrame(columns=["Timestamp", "Data"])
@@ -42,6 +54,14 @@ def on_message(client, userdata, msg):
     df.loc[len(df)] = [timestamp, float(data)]
 
 
+mail = Mail(app)
+
+def send_email(subject, body):
+    msg = Message(subject, recipients=['alejandro.1701520969@ucaldas.edu.co'])
+    msg.body = body
+    mail.send(msg)
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -60,9 +80,9 @@ def stream():
 
     return app.response_class(event_stream(), mimetype="text/event-stream")
 
-
 @app.route('/stats')
 def stats():
+    global notification_sent
     # Calcular estadísticas directamente desde MongoDB Atlas
     cursor = collection.find()
     data_values = [doc['data'] for doc in cursor]
@@ -72,6 +92,10 @@ def stats():
         mean_value = statistics.mean(data_values)
         max_value = max(data_values)
         min_value = min(data_values)
+
+        if latest_data > 30 and not notification_sent:
+            send_email('Alerta de Umbral', f'El último dato es {latest_data}, ¡se ha superado el umbral!')
+            notification_sent = True
 
         return jsonify({
             'latest_data': latest_data,
@@ -84,7 +108,6 @@ def stats():
 
 @app.route('/send_message')
 def send_message():
-
         message = request.args.get('message')
         print(f"Recibido mensaje: {message}")
 
@@ -95,6 +118,8 @@ def send_message():
             return jsonify({'status': 'success', 'message': f'Mensaje {message} enviado al tópico ALERT'})
         else:
             return jsonify({'status': 'error', 'message': 'Cliente MQTT no está conectado'})
+        
+
 
 @app.route('/collection_data')
 def collection_data():
