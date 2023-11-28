@@ -18,12 +18,13 @@ db = mongo_client["iot"]
 collection = db["data2"]
 
 # Configuración de Flask-Mail
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'alejotrujillo11@gmail.com'
-app.config['MAIL_PASSWORD'] = 'ecrb rmlt sqji lrji'
-app.config['MAIL_DEFAULT_SENDER'] = ('Alejandro T.', 'alejotrujillo11@gmail.com')
+# app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+# app.config['MAIL_PORT'] = 587
+# app.config['MAIL_USE_TLS'] = True
+# app.config['MAIL_USERNAME'] = 'alejotrujillo11@gmail.com'
+# app.config['MAIL_PASSWORD'] = 'ecrb rmlt sqji lrji'
+# app.config['MAIL_DEFAULT_SENDER'] = ('Alejandro T.', 'alejotrujillo11@gmail.com')
+# mail = Mail(app)
 
 # Crear el DataFrame de Pandas para almacenar los datos
 df = pd.DataFrame(columns=["Timestamp", "Data"])
@@ -54,12 +55,11 @@ def on_message(client, userdata, msg):
     df.loc[len(df)] = [timestamp, float(data)]
 
 
-mail = Mail(app)
 
-def send_email(subject, body):
-    msg = Message(subject, recipients=['alejandro.1701520969@ucaldas.edu.co'])
-    msg.body = body
-    mail.send(msg)
+# def send_email(subject, body):
+#     msg = Message(subject, recipients=['alejandro.1701520969@ucaldas.edu.co'])
+#     msg.body = body
+#     mail.send(msg)
 
 
 @app.route('/')
@@ -93,11 +93,11 @@ def stats():
         max_value = max(data_values)
         min_value = min(data_values)
 
-        if latest_data > 30 and not notification_sent:
-            send_email('Alerta de Umbral', f'El último dato es {latest_data}, ¡se ha superado el umbral!')
-            notification_sent = True
-        elif latest_data <= 30:
-            notification_sent = False
+        # if latest_data > 30 and not notification_sent:
+        #     send_email('Alerta de Umbral', f'El último dato es {latest_data}, ¡se ha superado el umbral!')
+        #     notification_sent = True
+        # elif latest_data <= 30:
+        #     notification_sent = False
 
         return jsonify({
             'latest_data': latest_data,

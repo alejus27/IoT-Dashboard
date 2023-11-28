@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -22,7 +23,11 @@
             color: #333;
         }
 
-        #buttons, #data, #stats, #graph, #chart {
+        #buttons,
+        #data,
+        #stats,
+        #graph,
+        #chart {
             margin-top: 20px;
             border: 1px solid #ddd;
             padding: 20px;
@@ -38,8 +43,14 @@
             color: red;
             font-weight: bold;
         }
+
+        .good {
+            color: green;
+            font-weight: bold;
+        }
     </style>
 </head>
+
 <body>
     <h1>MQTT Web App</h1>
     <div id="buttons">
@@ -64,10 +75,34 @@
     </div>
 
     <script>
+
+        let alertSent = false;
+        let prevValue = null;
+
+        function sendTelegramNotification(message, value) {
+            const botToken = '6381272777:AAGAqS2HmRr9LrH9rRtkEDKlZ50puEv-1Cw';
+            const chatId = '-1001862027628';
+            const apiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+
+            const fullMessage = `${message}\nValor actual: ${value}`;
+
+            const formData = new FormData();
+            formData.append('chat_id', chatId);
+            formData.append('text', fullMessage);
+
+            fetch(apiUrl, {
+                method: 'POST',
+                body: formData,
+            })
+                .then(response => response.json())
+                .then(data => console.log('Notificación enviada a Telegram:', data))
+                .catch(error => console.error('Error al enviar notificación a Telegram', error));
+        }
+
         const eventSource = new EventSource('/stream');
         let chart;
 
-        eventSource.onmessage = function(event) {
+        eventSource.onmessage = function (event) {
             // Actualizar el contenido con el último dato
             const latestDataElement = document.getElementById('latest-data');
             latestDataElement.innerHTML = `Último dato: ${event.data}`;
@@ -78,8 +113,9 @@
                 .then(data => {
                     if (data.latest_data !== undefined) {
                         const warningMessage = document.getElementById('warning-message');
+                        const goodMessage = document.getElementById('good-message');
                         const statElement = document.getElementById('latest-stat');
-                        
+
                         statElement.innerHTML = `
                             Media: ${data.mean_value}<br>
                             Máximo: ${data.max_value}<br>
@@ -87,16 +123,37 @@
                         `;
 
                         // Verificar si el último dato es mayor a 300 y mostrar mensaje de advertencia
-                        if (parseInt(data.latest_data) > 30) {
+                        if (parseInt(data.latest_data) > 30 && !alertSent) {
+                            // Enviar notificación a Telegram cuando se supera el umbral y no se ha enviado una alerta
+                            warningMessage.classList.remove('good');
                             warningMessage.classList.add('warning');
                             warningMessage.innerHTML = '¡Advertencia! Niveles altos de gas detectados.';
-                        } else {
+                            sendTelegramNotification('¡Advertencia! Niveles altos de gas detectados.', data.latest_data);
+                            alertSent = true; // Cambiar el estado para evitar el envío continuo de alertas
+                        }
+                        else if (parseInt(data.latest_data) <= 30) {
+
                             warningMessage.classList.remove('warning');
-                            warningMessage.innerHTML = '';  // Limpiar el mensaje si no hay advertencia
+                            warningMessage.classList.add('good');
+                            warningMessage.innerHTML = 'Nivel adecuado de gas detectado.';
                         }
 
+                        // else if (parseInt(data.latest_data) <= 30) {
+                        //     // Restablecer el estado si el valor vuelve a ser seguro
+                        //     alertSent = false;
+                        //     warningMessage.classList.remove('warning');
+                        //     warningMessage.innerHTML = '';
+                        // }
+
+                        // Restablecer el estado si el valor actual cambia
+                        if (prevValue !== null && parseInt(data.latest_data) !== prevValue) {
+                            alertSent = false;
+                        }
+
+                        prevValue = parseInt(data.latest_data);
+
                         // Actualizar la gráfica solo si hay un nuevo dato
-                        Plotly.extendTraces('graph', {y: [[data.latest_data]]}, [0]);
+                        Plotly.extendTraces('graph', { y: [[data.latest_data]] }, [0]);
                     }
                 })
                 .catch(error => console.error('Error al obtener estadísticas', error));
@@ -148,4 +205,5 @@
         }
     </script>
 </body>
+
 </html>
