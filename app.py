@@ -15,7 +15,7 @@ notification_sent = False
 # Reemplaza con tus credenciales de MongoDB Atlas
 mongo_client = MongoClient("mongodb+srv://alejo:123@cluster0.6lushwm.mongodb.net/")
 db = mongo_client["iot"]
-collection = db["data2"]
+collection = db["data3"]
 
 # Configuración de Flask-Mail
 # app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -145,4 +145,4 @@ if __name__ == '__main__':
     mqtt_thread.start()
 
     # Iniciar la aplicación Flask
-    app.run(debug=True, use_reloader=False)
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
