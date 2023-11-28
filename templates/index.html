@@ -25,6 +25,7 @@
 
         #buttons,
         #data,
+        #dataTemp,
         #stats,
         #graph,
         #chart {
@@ -54,21 +55,33 @@
 <body>
     <h1>MQTT Web App</h1>
     <div id="buttons">
-        <h2>Control Válvula de Gas</h2>
+        <h2>Control Válvula</h2>
+        <h3>Gas</h3>
         <button onclick="sendMessage('ON')">Encender</button>
         <button onclick="sendMessage('OFF')">Apagar</button>
     </div>
     <div id="data">
         <h2>Último Dato</h2>
+        <h3>Gas</h3>
         <p id="latest-data">Esperando datos...</p>
         <p id="warning-message" class="warning"></p>
+        <h3>Temperatura</h3>
+        <p id="latest-data-temp">Esperando datos...</p>
+        <p id="warning-message-temp" class="warning"></p>
     </div>
+    <!-- <div id="dataTemp">
+        <h2>Temperature - Last Data</h2>
+        <p id="latest-data-temp">Waiting for data...</p>
+        <p id="warning-message-temp" class="warning"></p>
+    </div> -->
     <div id="stats">
         <h2>Estadísticas</h2>
+        <h3>Gas</h3>
         <p id="latest-stat">Esperando datos...</p>
     </div>
     <div id="graph">
-        <h2>Gráfica de Datos MQTT</h2>
+        <h2>Gráfica de Datos</h2>
+        <h3>Gas</h3>
         <div id="chart-container">
             <canvas id="chart"></canvas>
         </div>
@@ -105,7 +118,7 @@
         eventSource.onmessage = function (event) {
             // Actualizar el contenido con el último dato
             const latestDataElement = document.getElementById('latest-data');
-            latestDataElement.innerHTML = `Último dato: ${event.data}`;
+            latestDataElement.innerHTML = `Dato: ${event.data}`;
 
             // Obtener estadísticas
             fetch('/stats')
@@ -194,6 +207,15 @@
                     }
                 })
                 .catch(error => console.error('Error al obtener datos de la colección', error));
+        }
+
+        // Temperature data
+        const eventSourceTemp = new EventSource('/streamTemp');
+
+        eventSourceTemp.onmessage = function (event) {
+            const latestDataElementTemp = document.getElementById('latest-data-temp');
+            latestDataElementTemp.innerHTML = `Dato: ${event.data}`;
+
         }
 
         function sendMessage(message) {

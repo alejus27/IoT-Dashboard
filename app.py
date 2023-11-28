@@ -16,6 +16,7 @@ notification_sent = False
 mongo_client = MongoClient("mongodb+srv://alejo:123@cluster0.6lushwm.mongodb.net/")
 db = mongo_client["iot"]
 collection = db["data3"]
+collection2 = db["data4"]
 
 # Configuración de Flask-Mail
 # app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -37,6 +38,7 @@ def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("Conectado al broker MQTT")
         mqtt_client.subscribe("GAS")
+        mqtt_client.subscribe("TEMP")
     else:
         print("Error de conexión: ", rc)
 
@@ -44,12 +46,20 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, msg):
     data = msg.payload.decode("utf-8")
     timestamp = datetime.now()
+    topic = msg.topic
 
-    print(data)
+    print(data, ' ',topic)
 
     # Guardar en MongoDB
-    document = {"timestamp": timestamp, "data": float(data)}
-    collection.insert_one(document)
+    if topic == "GAS":
+        document = {"timestamp": timestamp, "data": float(data)}
+        collection.insert_one(document)
+
+    elif topic == "TEMP":
+        document = {"timestamp": timestamp, "data": float(data)}
+        collection2.insert_one(document)
+    
+   
 
     # Actualizar el DataFrame
     df.loc[len(df)] = [timestamp, float(data)]
@@ -79,6 +89,21 @@ def stream():
             time.sleep(1)
 
     return app.response_class(event_stream(), mimetype="text/event-stream")
+
+@app.route('/streamTemp')
+def streamTemp():
+    def event_stream_temp():
+        while True:
+            # Obtener el último dato de la base de datos
+            latest_data = collection2.find_one(sort=[("timestamp", -1)])
+
+            if latest_data:
+                # Enviar el evento con el tipo de evento "message"
+                yield f"data: {latest_data['data']}\n\n"
+            time.sleep(1)
+
+    # Establecer el tipo de contenido correctamente a "text/event-stream"
+    return app.response_class(event_stream_temp(), mimetype="text/event-stream")
 
 @app.route('/stats')
 def stats():
