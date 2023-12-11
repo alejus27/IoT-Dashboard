@@ -136,7 +136,7 @@
                         `;
 
                         // Verificar si el último dato es mayor a 300 y mostrar mensaje de advertencia
-                        if (parseInt(data.latest_data) > 30 && !alertSent) {
+                        if (parseInt(data.latest_data) > 300 && !alertSent) {
                             // Enviar notificación a Telegram cuando se supera el umbral y no se ha enviado una alerta
                             warningMessage.classList.remove('good');
                             warningMessage.classList.add('warning');
@@ -144,7 +144,7 @@
                             sendTelegramNotification('¡Advertencia! Niveles altos de gas detectados.', data.latest_data);
                             alertSent = true; // Cambiar el estado para evitar el envío continuo de alertas
                         }
-                        else if (parseInt(data.latest_data) <= 30) {
+                        else if (parseInt(data.latest_data) <= 300) {
 
                             warningMessage.classList.remove('warning');
                             warningMessage.classList.add('good');

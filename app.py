@@ -7,7 +7,7 @@ import threading
 import time
 import statistics
 from bson.json_util import dumps
-from flask_mail import Mail, Message
+#from flask_mail import Mail, Message
 app = Flask(__name__)
 
 notification_sent = False
@@ -15,8 +15,8 @@ notification_sent = False
 # Reemplaza con tus credenciales de MongoDB Atlas
 mongo_client = MongoClient("mongodb+srv://alejo:123@cluster0.6lushwm.mongodb.net/")
 db = mongo_client["iot"]
-collection = db["data3"]
-collection2 = db["data4"]
+collection = db["data_gas"]
+collection2 = db["data_temp"]
 
 # Configuración de Flask-Mail
 # app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -37,32 +37,41 @@ mqtt_client = mqtt.Client()
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         print("Conectado al broker MQTT")
-        mqtt_client.subscribe("GAS")
-        mqtt_client.subscribe("TEMP")
+        mqtt_client.subscribe("IOT/GAS")
+        mqtt_client.subscribe("IOT/TEMP")
     else:
         print("Error de conexión: ", rc)
 
+
+# ...
 
 def on_message(client, userdata, msg):
     data = msg.payload.decode("utf-8")
     timestamp = datetime.now()
     topic = msg.topic
 
-    print(data, ' ',topic)
+    print(data, ' ', topic)
+
+    # Validar que el dato recibido sea numérico
+    try:
+        float_data = float(data)
+    except ValueError:
+        print(f"Error: El valor recibido ({data}) en el tópico {topic} no es numérico.")
+        return
 
     # Guardar en MongoDB
-    if topic == "GAS":
-        document = {"timestamp": timestamp, "data": float(data)}
+    if topic == "IOT/GAS":
+        document = {"timestamp": timestamp, "data": float_data}
         collection.insert_one(document)
 
-    elif topic == "TEMP":
-        document = {"timestamp": timestamp, "data": float(data)}
+    elif topic == "IOT/TEMP":
+        document = {"timestamp": timestamp, "data": float_data}
         collection2.insert_one(document)
-    
-   
 
     # Actualizar el DataFrame
-    df.loc[len(df)] = [timestamp, float(data)]
+    df.loc[len(df)] = [timestamp, float_data]
+
+# ...
 
 
 
@@ -141,7 +150,7 @@ def send_message():
         # Verificar si el cliente MQTT está conectado antes de publicar
         if mqtt_client.is_connected():
             # Cambia el tópico a "ALERT"
-            mqtt_client.publish("ALERT", message)
+            mqtt_client.publish("IOT/ALERT", message)
             return jsonify({'status': 'success', 'message': f'Mensaje {message} enviado al tópico ALERT'})
         else:
             return jsonify({'status': 'error', 'message': 'Cliente MQTT no está conectado'})
